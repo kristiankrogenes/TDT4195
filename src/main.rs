@@ -39,7 +39,79 @@ fn offset<T>(n: u32) -> *const c_void {
 
 
 // == // Modify and complete the function below for the first task
-// unsafe fn FUNCTION_NAME(ARGUMENT_NAME: &Vec<f32>, ARGUMENT_NAME: &Vec<u32>) -> u32 { } 
+unsafe fn setupVAO(vertices: &Vec<f32>, indices: &Vec<u32>) -> u32 { 
+
+    let mut vao: gl::types::GLuint = 0;
+    let mut vbo: gl::types::GLuint = 0;
+    let mut ibo: gl::types::GLuint = 0;
+    // let mut vao = 0;
+    // let mut vbo = 0;
+    // let mut ibo = 0;
+
+    gl::GenVertexArrays(1, &mut vao);
+    assert!(vao != 0);
+    gl::BindVertexArray(vao);
+
+    gl::GenBuffers(1, &mut vbo);
+    gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
+    gl::BufferData(
+        gl::ARRAY_BUFFER,
+        byte_size_of_array(&vertices),
+        pointer_to_array(&vertices),
+        gl::STATIC_DRAW,
+    );
+
+    gl::GenBuffers(1, &mut ibo);
+    gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ibo);
+    gl::BufferData(
+        gl::ELEMENT_ARRAY_BUFFER,
+        byte_size_of_array(&indices),
+        pointer_to_array(&indices),
+        gl::STATIC_DRAW,
+    );
+
+    gl::VertexAttribPointer(
+        0,
+        3,
+        gl::FLOAT,
+        gl::FALSE,
+        3 * size_of::<f32>(),
+        ptr::null(),
+    );
+    gl::EnableVertexAttribArray(0);
+
+    return vao;
+} 
+
+unsafe fn genCircleVertices(x: f32, y: f32, z: f32, rad: f32) -> Vec<f32> {
+
+    pub const PI: f32 = 3.14159265358979323846264338327950288f32;
+
+    let mut vertices_x: Vec<f32> = Vec::new();
+    let mut vertices_y: Vec<f32> = Vec::new();
+    let mut vertices_z: Vec<f32> = Vec::new();
+
+    vertices_x.push(x);
+    vertices_y.push(y);
+    vertices_z.push(z);
+
+    for i in 1..1000 {
+        let f: f32 = i as f32;
+        vertices_x.push(x + (rad * f32::cos(f * PI*2.0 / 1000.0)));
+        vertices_y.push(y + (rad * f32::sin(f * PI*2.0 / 1000.0)));
+        vertices_z.push(z);
+    }
+
+    let mut circle_vertices: Vec<f32> = Vec::new();
+    
+    for i in 0..1000 {
+        circle_vertices.push(vertices_x[i]);
+        circle_vertices.push(vertices_y[i]);
+        circle_vertices.push(vertices_z[i]);
+    }
+
+    return circle_vertices;
+}
 
 fn main() {
     // Set up the necessary objects to deal with windows and event handling
@@ -92,11 +164,6 @@ fn main() {
             println!("GLSL\t: {}", util::get_gl_string(gl::SHADING_LANGUAGE_VERSION));
         }
 
-        // == // Set up your VAO here
-        unsafe {
-
-        }
-
         // Basic usage of shader helper:
         // The example code below returns a shader object, which contains the field `.program_id`.
         // The snippet is not enough to do the assignment, and will need to be modified (outside of
@@ -105,15 +172,77 @@ fn main() {
         //     shader::ShaderBuilder::new()
         //        .attach_file("./path/to/shader.file")
         //        .link();
-        unsafe {
 
+        let main_shader = unsafe {
+            shader::ShaderBuilder::new()
+            .attach_file("./shaders/simple.frag")
+            .attach_file("./shaders/simple.vert")
+            .link()
+        };
+
+        // 5 TRIANGLES (TASK 1) ===========================
+        // let vertices: Vec<f32> = vec![
+        //     -0.8, -0.6, 0.0,
+        //     -0.7, -0.6, 0.0,
+        //     -0.75, 0.3, 0.0,
+
+        //     0.7, -0.6, 0.0,
+        //     0.8, -0.6, 0.0,
+        //     0.75, 0.3, 0.0,
+
+        //     -0.8, -0.85, 0.0,
+        //     -0.1, -0.9, 0.0,
+        //     -0.1, -0.8, 0.0,
+
+        //     0.1, -0.8, 0.0,
+        //     0.1, -0.9, 0.0,
+        //     0.8, -0.85, 0.0,
+
+        //     -0.6, -0.6, 0.0,
+        //     0.6, -0.6, 0.0,
+        //     0.0, 0.6, 0.0
+        // ];
+
+        // let indices: Vec<u32> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]; // ORDERED
+        // let indices: Vec<u32> = vec![5, 8, 6, 2, 1, 4, 11, 9, 10, 3, 14, 12, 7, 13]; // RANDOM (TASK 2b)
+        // =================================================================
+
+        // 3D Triangle (TASK 2a) ====================================================
+        // let vertices: Vec<f32> = vec![
+        //     0.6, -0.8, -1.2,
+        //     0.0, 0.4, 0.0, 
+        //     -0.8, -0.2, 1.2,
+        // ];
+
+        // let indices: Vec<u32> = vec![0, 1, 2];
+        // =================================================================
+
+
+        // CIRCLE (TASK 3b) ================================
+        let vertices: Vec<f32> = unsafe {
+            genCircleVertices(0.0, 0.0, 0.0, 0.8)
+        };
+
+        let mut indices: Vec<u32> = Vec::new();
+
+        for n in 0..1000 {
+            indices.push(n);
         }
+
+        indices.push(1);
+        // =======================================
+
+        // == // Set up your VAO here
+        let vao = unsafe {
+            setupVAO(&vertices, &indices)
+        };
 
         // Used to demonstrate keyboard handling -- feel free to remove
         let mut _arbitrary_number = 0.0;
 
         let first_frame_time = std::time::Instant::now();
         let mut last_frame_time = first_frame_time;
+
         // The main rendering loop
         loop {
             let now = std::time::Instant::now();
@@ -139,9 +268,6 @@ fn main() {
             }
             // Handle mouse movement. delta contains the x and y movement of the mouse since last frame in pixels
             if let Ok(mut delta) = mouse_delta.lock() {
-
-
-
                 *delta = (0.0, 0.0);
             }
 
@@ -150,11 +276,12 @@ fn main() {
                 gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
 
                 // Issue the necessary commands to draw your scene here
+                main_shader.activate();
+                gl::BindVertexArray(vao);
 
-
-
-
-
+                // gl::DrawElements(gl::TRIANGLES, 15, gl::UNSIGNED_INT, ptr::null()); // 5 TRIANGLES (TASK 1)
+                // gl::DrawElements(gl::TRIANGLES, 3, gl::UNSIGNED_INT, ptr::null()); // 3D TRIANGLE (TASK 2)
+                gl::DrawElements(gl::TRIANGLE_FAN, 1002, gl::UNSIGNED_INT, ptr::null()); // CIRCLE (TASK 3)
             }
 
             context.swap_buffers().unwrap();
