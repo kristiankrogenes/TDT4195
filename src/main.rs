@@ -39,21 +39,19 @@ fn offset<T>(n: u32) -> *const c_void {
 
 
 // == // Modify and complete the function below for the first task
-unsafe fn setupVAO(vertices: &Vec<f32>, indices: &Vec<u32>) -> u32 { 
+unsafe fn setupVAO(vertices: &Vec<f32>, indices: &Vec<u32>, rgba: &Vec<f32>) -> u32 { 
 
     let mut vao: gl::types::GLuint = 0;
-    let mut vbo: gl::types::GLuint = 0;
-    let mut ibo: gl::types::GLuint = 0;
-    // let mut vao = 0;
-    // let mut vbo = 0;
-    // let mut ibo = 0;
+    let mut vbo1: gl::types::GLuint = 0;
+    let mut vbo2: gl::types::GLuint = 0;
+    let mut vbo3: gl::types::GLuint = 0;
 
     gl::GenVertexArrays(1, &mut vao);
     assert!(vao != 0);
     gl::BindVertexArray(vao);
 
-    gl::GenBuffers(1, &mut vbo);
-    gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
+    gl::GenBuffers(1, &mut vbo1);
+    gl::BindBuffer(gl::ARRAY_BUFFER, vbo1);
     gl::BufferData(
         gl::ARRAY_BUFFER,
         byte_size_of_array(&vertices),
@@ -61,8 +59,8 @@ unsafe fn setupVAO(vertices: &Vec<f32>, indices: &Vec<u32>) -> u32 {
         gl::STATIC_DRAW,
     );
 
-    gl::GenBuffers(1, &mut ibo);
-    gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ibo);
+    gl::GenBuffers(1, &mut vbo2);
+    gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, vbo2);
     gl::BufferData(
         gl::ELEMENT_ARRAY_BUFFER,
         byte_size_of_array(&indices),
@@ -80,6 +78,25 @@ unsafe fn setupVAO(vertices: &Vec<f32>, indices: &Vec<u32>) -> u32 {
     );
     gl::EnableVertexAttribArray(0);
 
+    gl::GenBuffers(1, &mut vbo3);
+    gl::BindBuffer(gl::ARRAY_BUFFER, vbo3);
+    gl::BufferData(
+        gl::ARRAY_BUFFER,
+        byte_size_of_array(&rgba),
+        pointer_to_array(&rgba),
+        gl::STATIC_DRAW,
+    );
+
+    gl::VertexAttribPointer(
+        1,
+        4,
+        gl::FLOAT,
+        gl::FALSE,
+        4 * size_of::<f32>(),
+        ptr::null(),
+    );
+    gl::EnableVertexAttribArray(1);
+
     return vao;
 } 
 
@@ -95,16 +112,16 @@ unsafe fn genCircleVertices(x: f32, y: f32, z: f32, rad: f32) -> Vec<f32> {
     vertices_y.push(y);
     vertices_z.push(z);
 
+    let mut circle_vertices: Vec<f32> = Vec::new();
+
     for i in 1..1000 {
+
         let f: f32 = i as f32;
+
         vertices_x.push(x + (rad * f32::cos(f * PI*2.0 / 1000.0)));
         vertices_y.push(y + (rad * f32::sin(f * PI*2.0 / 1000.0)));
         vertices_z.push(z);
-    }
 
-    let mut circle_vertices: Vec<f32> = Vec::new();
-    
-    for i in 0..1000 {
         circle_vertices.push(vertices_x[i]);
         circle_vertices.push(vertices_y[i]);
         circle_vertices.push(vertices_z[i]);
@@ -180,61 +197,68 @@ fn main() {
             .link()
         };
 
-        // 5 TRIANGLES (TASK 1) ===========================
+        // ASSIGNEMENT2 TASK 1 ==================================================
         // let vertices: Vec<f32> = vec![
-        //     -0.8, -0.6, 0.0,
-        //     -0.7, -0.6, 0.0,
-        //     -0.75, 0.3, 0.0,
+        //     0.0, 0.0, 0.0,
 
-        //     0.7, -0.6, 0.0,
-        //     0.8, -0.6, 0.0,
-        //     0.75, 0.3, 0.0,
+        //     -0.2, 0.8, 0.0, 
+        //     -0.8, 0.2, 0.0, 
 
-        //     -0.8, -0.85, 0.0,
-        //     -0.1, -0.9, 0.0,
-        //     -0.1, -0.8, 0.0,
+        //     0.2, 0.8, 0.0,
+        //     0.8, 0.2, 0.0,
 
-        //     0.1, -0.8, 0.0,
-        //     0.1, -0.9, 0.0,
-        //     0.8, -0.85, 0.0,
-
-        //     -0.6, -0.6, 0.0,
-        //     0.6, -0.6, 0.0,
-        //     0.0, 0.6, 0.0
+        //     -0.2, -0.8, 0.0,
+        //     0.2, -0.8, 0.0,
         // ];
 
-        // let indices: Vec<u32> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]; // ORDERED
-        // let indices: Vec<u32> = vec![5, 8, 6, 2, 1, 4, 11, 9, 10, 3, 14, 12, 7, 13]; // RANDOM (TASK 2b)
-        // =================================================================
+        // let indices: Vec<u32> = vec![0, 1, 2, 0, 4, 3, 0, 5, 6];
+        // let rgba: Vec<f32> = vec![
+        //     0.0, 0.0, 1.0, 1.0,
+        //     0.0, 1.0, 0.0, 1.0,
+        //     1.0, 0.0, 0.0, 1.0,
 
-        // 3D Triangle (TASK 2a) ====================================================
-        // let vertices: Vec<f32> = vec![
-        //     0.6, -0.8, -1.2,
-        //     0.0, 0.4, 0.0, 
-        //     -0.8, -0.2, 1.2,
+        //     0.0, 0.0, 0.0, 1.0,
+        //     1.0, 1.0, 0.0, 1.0,
+        //     1.0, 0.0, 1.0, 1.0,
+
+        //     0.5, 0.5, 1.0, 1.0,
         // ];
+        // ======================================================================
 
-        // let indices: Vec<u32> = vec![0, 1, 2];
-        // =================================================================
+        // ASSIGNEMENT2 TASK 1 ==================================================
+        let vertices: Vec<f32> = vec![
+            0.0, 0.0, 0.2,
+            -0.5, -0.5, 0.2,
+            0.5, -0.5, 0.2,
 
+            0.0, -0.2, 0.1, 
+            -0.3, 0.5, 0.1, 
+            0.3, 0.5, 0.1, 
 
-        // CIRCLE (TASK 3b) ================================
-        let vertices: Vec<f32> = unsafe {
-            genCircleVertices(0.0, 0.0, 0.0, 0.8)
-        };
+            0.0, -0.1, 0.0, 
+            -0.2, -0.8, 0.0, 
+            0.2, -0.8, 0.0,
+        ];
 
-        let mut indices: Vec<u32> = Vec::new();
+        let indices: Vec<u32> = vec![0, 1, 2, 3, 5, 4, 6, 7, 8];
+        let rgba: Vec<f32> = vec![
+            0.5, 0.0, 0.0, 0.5,
+            0.5, 0.0, 0.0, 0.5,
+            0.5, 0.0, 0.0, 0.5,
 
-        for n in 0..1000 {
-            indices.push(n);
-        }
+            0.5, 0.5, 1.0, 0.5,
+            0.5, 0.5, 1.0, 0.5,
+            0.5, 0.5, 1.0, 0.5,
 
-        indices.push(1);
-        // =======================================
+            0.0, 1.0, 0.0, 0.5,
+            0.0, 1.0, 0.0, 0.5,
+            0.0, 1.0, 0.0, 0.5,
+        ];
+        // ======================================================================
 
         // == // Set up your VAO here
         let vao = unsafe {
-            setupVAO(&vertices, &indices)
+            setupVAO(&vertices, &indices, &rgba)
         };
 
         // Used to demonstrate keyboard handling -- feel free to remove
@@ -243,6 +267,10 @@ fn main() {
         let first_frame_time = std::time::Instant::now();
         let mut last_frame_time = first_frame_time;
 
+        let mut translate_vec = glm::vec3(0.0, 0.0, 0.0);
+        let mut rotate_vec = glm::vec3(0.0, 0.0, 0.0);
+        let mut scaling_vec = glm::vec3(1.0, 1.0, 1.0);
+
         // The main rendering loop
         loop {
             let now = std::time::Instant::now();
@@ -250,17 +278,69 @@ fn main() {
             let delta_time = now.duration_since(last_frame_time).as_secs_f32();
             last_frame_time = now;
 
+            // Constructs matrix each fram
+            let mut mtx: glm::Mat4 = glm::identity();
+
+            // Transform to negative z-axis
+            let translation_mtx: glm::Mat4 = glm::translation(&glm::vec3(0.0, 0.0, -5.0));
+
+            // Transform xyz position
+            let position_xyz_mtx: glm::Mat4 = glm::translation(&translate_vec);
+
+            // Transform xy rotation
+            let rotation_xy_mtx: glm::Mat4 = glm::rotation(-rotate_vec[1], &glm::vec3(1.0, 0.0, 0.0)) * glm::rotation(rotate_vec[0], &glm::vec3(0.0, 1.0, 0.0));
+            
+            // Combines xyz movement and rotation
+            let pos_rot_mtx: glm::Mat4 = rotation_xy_mtx * position_xyz_mtx;
+
+            // Scale transformation
+            let scaling_mtx: glm::Mat4 = glm::scaling(&scaling_vec);
+
+            // Projection transformation
+            let projection_mtx: glm::Mat4 = glm::perspective(SCREEN_H as f32 / SCREEN_W as f32, 0.5, 1.0, 100.0);
+
+            mtx = mtx * projection_mtx * pos_rot_mtx * scaling_mtx * translation_mtx ;
+
             // Handle keyboard input
             if let Ok(keys) = pressed_keys.lock() {
                 for key in keys.iter() {
                     match key {
+                        // VirtualKeyCode::A => {
+                        //     _arbitrary_number += delta_time;
+                        // },
+                        // VirtualKeyCode::D => {
+                        //     _arbitrary_number -= delta_time;
+                        // },
+                        VirtualKeyCode::W => {
+                            translate_vec.y += delta_time;
+                        },
                         VirtualKeyCode::A => {
-                            _arbitrary_number += delta_time;
+                            translate_vec.x -= delta_time;
                         },
                         VirtualKeyCode::D => {
-                            _arbitrary_number -= delta_time;
+                            translate_vec.x += delta_time;
                         },
-
+                        VirtualKeyCode::S => {
+                            translate_vec.y -= delta_time;
+                        },
+                        VirtualKeyCode::Q => {
+                            scaling_vec.z -= delta_time;
+                        },
+                        VirtualKeyCode::E => {
+                            scaling_vec.z += delta_time;
+                        },
+                        VirtualKeyCode::Z => {
+                            rotate_vec.y += delta_time;
+                        },
+                        VirtualKeyCode::X => {
+                            rotate_vec.y -= delta_time;
+                        },
+                        VirtualKeyCode::C => {
+                            rotate_vec.x += delta_time;
+                        },
+                        VirtualKeyCode::V => {
+                            rotate_vec.x -= delta_time;
+                        },
 
                         _ => { }
                     }
@@ -279,9 +359,10 @@ fn main() {
                 main_shader.activate();
                 gl::BindVertexArray(vao);
 
-                // gl::DrawElements(gl::TRIANGLES, 15, gl::UNSIGNED_INT, ptr::null()); // 5 TRIANGLES (TASK 1)
-                // gl::DrawElements(gl::TRIANGLES, 3, gl::UNSIGNED_INT, ptr::null()); // 3D TRIANGLE (TASK 2)
-                gl::DrawElements(gl::TRIANGLE_FAN, 1002, gl::UNSIGNED_INT, ptr::null()); // CIRCLE (TASK 3)
+                // gl::Uniform1f(2, f32::sin(elapsed)); TASK3
+                gl::UniformMatrix4fv(3, 1, gl::FALSE, mtx.as_ptr());
+
+                gl::DrawElements(gl::TRIANGLES, 9, gl::UNSIGNED_INT, ptr::null()); // ASSIGNEMENT2 (TASK 2)
             }
 
             context.swap_buffers().unwrap();
@@ -340,9 +421,6 @@ fn main() {
                     Escape => {
                         *control_flow = ControlFlow::Exit;
                     },
-                    Q => {
-                        *control_flow = ControlFlow::Exit;
-                    }
                     _ => { }
                 }
             },
