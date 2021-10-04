@@ -3,6 +3,9 @@ use std::{ mem, ptr, os::raw::c_void };
 use std::thread;
 use std::sync::{Mutex, Arc, RwLock};
 
+mod mesh;
+mod scene_graph;
+mod toolbox;
 mod shader;
 mod util;
 
@@ -36,15 +39,15 @@ fn offset<T>(n: u32) -> *const c_void {
 // Get a null pointer (equivalent to an offset of 0)
 // ptr::null()
 
-
-
 // == // Modify and complete the function below for the first task
-unsafe fn setupVAO(vertices: &Vec<f32>, indices: &Vec<u32>, rgba: &Vec<f32>) -> u32 { 
+unsafe fn setup_vao(vertices: &Vec<f32>, indices: &Vec<u32>, rgba: &Vec<f32>, normals: &Vec<f32>) -> u32 { 
 
     let mut vao: gl::types::GLuint = 0;
+    
     let mut vbo1: gl::types::GLuint = 0;
     let mut vbo2: gl::types::GLuint = 0;
     let mut vbo3: gl::types::GLuint = 0;
+    let mut vbo4: gl::types::GLuint = 0;
 
     gl::GenVertexArrays(1, &mut vao);
     assert!(vao != 0);
@@ -59,15 +62,6 @@ unsafe fn setupVAO(vertices: &Vec<f32>, indices: &Vec<u32>, rgba: &Vec<f32>) -> 
         gl::STATIC_DRAW,
     );
 
-    gl::GenBuffers(1, &mut vbo2);
-    gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, vbo2);
-    gl::BufferData(
-        gl::ELEMENT_ARRAY_BUFFER,
-        byte_size_of_array(&indices),
-        pointer_to_array(&indices),
-        gl::STATIC_DRAW,
-    );
-
     gl::VertexAttribPointer(
         0,
         3,
@@ -77,6 +71,15 @@ unsafe fn setupVAO(vertices: &Vec<f32>, indices: &Vec<u32>, rgba: &Vec<f32>) -> 
         ptr::null(),
     );
     gl::EnableVertexAttribArray(0);
+
+    gl::GenBuffers(1, &mut vbo2);
+    gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, vbo2);
+    gl::BufferData(
+        gl::ELEMENT_ARRAY_BUFFER,
+        byte_size_of_array(&indices),
+        pointer_to_array(&indices),
+        gl::STATIC_DRAW,
+    );
 
     gl::GenBuffers(1, &mut vbo3);
     gl::BindBuffer(gl::ARRAY_BUFFER, vbo3);
@@ -97,38 +100,27 @@ unsafe fn setupVAO(vertices: &Vec<f32>, indices: &Vec<u32>, rgba: &Vec<f32>) -> 
     );
     gl::EnableVertexAttribArray(1);
 
+    gl::GenBuffers(1, &mut vbo4);
+    gl::BindBuffer(gl::ARRAY_BUFFER, vbo4);
+    gl::BufferData(
+        gl::ARRAY_BUFFER,
+        byte_size_of_array(&normals),
+        pointer_to_array(&normals),
+        gl::STATIC_DRAW,
+    );
+
+    gl::VertexAttribPointer(
+        2,
+        3,
+        gl::FLOAT,
+        gl::FALSE,
+        size_of::<f32>() * 3,
+        ptr::null(),
+    );
+    gl::EnableVertexAttribArray(2);
+
     return vao;
 } 
-
-unsafe fn genCircleVertices(x: f32, y: f32, z: f32, rad: f32) -> Vec<f32> {
-
-    pub const PI: f32 = 3.14159265358979323846264338327950288f32;
-
-    let mut vertices_x: Vec<f32> = Vec::new();
-    let mut vertices_y: Vec<f32> = Vec::new();
-    let mut vertices_z: Vec<f32> = Vec::new();
-
-    vertices_x.push(x);
-    vertices_y.push(y);
-    vertices_z.push(z);
-
-    let mut circle_vertices: Vec<f32> = Vec::new();
-
-    for i in 1..1000 {
-
-        let f: f32 = i as f32;
-
-        vertices_x.push(x + (rad * f32::cos(f * PI*2.0 / 1000.0)));
-        vertices_y.push(y + (rad * f32::sin(f * PI*2.0 / 1000.0)));
-        vertices_z.push(z);
-
-        circle_vertices.push(vertices_x[i]);
-        circle_vertices.push(vertices_y[i]);
-        circle_vertices.push(vertices_z[i]);
-    }
-
-    return circle_vertices;
-}
 
 fn main() {
     // Set up the necessary objects to deal with windows and event handling
@@ -190,75 +182,19 @@ fn main() {
         //        .attach_file("./path/to/shader.file")
         //        .link();
 
-        let main_shader = unsafe {
-            shader::ShaderBuilder::new()
-            .attach_file("./shaders/simple.frag")
-            .attach_file("./shaders/simple.vert")
-            .link()
-        };
+        // Load lunarsurface data
+        let lunarsurface_mesh = mesh::Terrain::load(".\\resources\\lunarsurface.obj");
 
-        // ASSIGNEMENT2 TASK 1 ==================================================
-        // let vertices: Vec<f32> = vec![
-        //     0.0, 0.0, 0.0,
+        // Setting up lunar vao
+        let lunarsurface_vao: u32; 
 
-        //     -0.2, 0.8, 0.0, 
-        //     -0.8, 0.2, 0.0, 
-
-        //     0.2, 0.8, 0.0,
-        //     0.8, 0.2, 0.0,
-
-        //     -0.2, -0.8, 0.0,
-        //     0.2, -0.8, 0.0,
-        // ];
-
-        // let indices: Vec<u32> = vec![0, 1, 2, 0, 4, 3, 0, 5, 6];
-        // let rgba: Vec<f32> = vec![
-        //     0.0, 0.0, 1.0, 1.0,
-        //     0.0, 1.0, 0.0, 1.0,
-        //     1.0, 0.0, 0.0, 1.0,
-
-        //     0.0, 0.0, 0.0, 1.0,
-        //     1.0, 1.0, 0.0, 1.0,
-        //     1.0, 0.0, 1.0, 1.0,
-
-        //     0.5, 0.5, 1.0, 1.0,
-        // ];
-        // ======================================================================
-
-        // ASSIGNEMENT2 TASK 1 ==================================================
-        let vertices: Vec<f32> = vec![
-            0.0, 0.0, 0.2,
-            -0.5, -0.5, 0.2,
-            0.5, -0.5, 0.2,
-
-            0.0, -0.2, 0.1, 
-            -0.3, 0.5, 0.1, 
-            0.3, 0.5, 0.1, 
-
-            0.0, -0.1, 0.0, 
-            -0.2, -0.8, 0.0, 
-            0.2, -0.8, 0.0,
-        ];
-
-        let indices: Vec<u32> = vec![0, 1, 2, 3, 5, 4, 6, 7, 8];
-        let rgba: Vec<f32> = vec![
-            0.5, 0.0, 0.0, 0.5,
-            0.5, 0.0, 0.0, 0.5,
-            0.5, 0.0, 0.0, 0.5,
-
-            0.5, 0.5, 1.0, 0.5,
-            0.5, 0.5, 1.0, 0.5,
-            0.5, 0.5, 1.0, 0.5,
-
-            0.0, 1.0, 0.0, 0.5,
-            0.0, 1.0, 0.0, 0.5,
-            0.0, 1.0, 0.0, 0.5,
-        ];
-        // ======================================================================
-
-        // == // Set up your VAO here
-        let vao = unsafe {
-            setupVAO(&vertices, &indices, &rgba)
+        unsafe {
+            lunarsurface_vao = setup_vao(
+                &lunarsurface_mesh.vertices, 
+                &lunarsurface_mesh.indices, 
+                &lunarsurface_mesh.colors, 
+                &lunarsurface_mesh.normals,
+            );
         };
 
         // Used to demonstrate keyboard handling -- feel free to remove
@@ -271,6 +207,14 @@ fn main() {
         let mut rotate_vec = glm::vec3(0.0, 0.0, 0.0);
         let mut scaling_vec = glm::vec3(1.0, 1.0, 1.0);
 
+        unsafe {
+            let main_shader = shader::ShaderBuilder::new()
+                .attach_file("./shaders/simple.frag")
+                .attach_file("./shaders/simple.vert")
+                .link();
+            main_shader.activate();
+        };
+
         // The main rendering loop
         loop {
             let now = std::time::Instant::now();
@@ -281,8 +225,12 @@ fn main() {
             // Constructs matrix each fram
             let mut mtx: glm::Mat4 = glm::identity();
 
+            // let model: glm::Mat4 = glm::perspective((SCREEN_H as f32) / (SCREEN_W as f32), 90.0, 1.0, 1000.0);
+
             // Transform to negative z-axis
-            let translation_mtx: glm::Mat4 = glm::translation(&glm::vec3(0.0, 0.0, -5.0));
+            let translation_mtx: glm::Mat4 = glm::translation(&glm::vec3(0.0, 0.0, -1.0));
+
+            // let proj: glm::Mat4 = model * translation_mtx;
 
             // Transform xyz position
             let position_xyz_mtx: glm::Mat4 = glm::translation(&translate_vec);
@@ -299,18 +247,18 @@ fn main() {
             // Projection transformation
             let projection_mtx: glm::Mat4 = glm::perspective(SCREEN_H as f32 / SCREEN_W as f32, 0.5, 1.0, 100.0);
 
-            mtx = mtx * projection_mtx * pos_rot_mtx * scaling_mtx * translation_mtx ;
+            mtx = mtx * projection_mtx * pos_rot_mtx * scaling_mtx * mtx;
 
             // Handle keyboard input
             if let Ok(keys) = pressed_keys.lock() {
                 for key in keys.iter() {
                     match key {
-                        // VirtualKeyCode::A => {
-                        //     _arbitrary_number += delta_time;
-                        // },
-                        // VirtualKeyCode::D => {
-                        //     _arbitrary_number -= delta_time;
-                        // },
+                        VirtualKeyCode::A => {
+                            _arbitrary_number += delta_time;
+                        },
+                        VirtualKeyCode::D => {
+                            _arbitrary_number -= delta_time;
+                        },
                         VirtualKeyCode::W => {
                             translate_vec.y += delta_time;
                         },
@@ -356,13 +304,10 @@ fn main() {
                 gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
 
                 // Issue the necessary commands to draw your scene here
-                main_shader.activate();
-                gl::BindVertexArray(vao);
-
-                // gl::Uniform1f(2, f32::sin(elapsed)); TASK3
+                gl::BindVertexArray(lunarsurface_vao);
                 gl::UniformMatrix4fv(3, 1, gl::FALSE, mtx.as_ptr());
 
-                gl::DrawElements(gl::TRIANGLES, 9, gl::UNSIGNED_INT, ptr::null()); // ASSIGNEMENT2 (TASK 2)
+                gl::DrawElements(gl::TRIANGLES, lunarsurface_mesh.index_count, gl::UNSIGNED_INT, ptr::null());
             }
 
             context.swap_buffers().unwrap();
