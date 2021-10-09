@@ -129,8 +129,10 @@ unsafe fn setup_vao(vertices: &Vec<f32>, indices: &Vec<u32>, rgba: &Vec<f32>, no
 unsafe fn draw_scene(node: &scene_graph::SceneNode, view_projection_matrix: &glm::Mat4) {
 
     if node.index_count >= 0 {
-        let mtx: glm::Mat4 = view_projection_matrix * node.current_transformation_matrix;
-        gl::UniformMatrix4fv(3, 1, gl::FALSE, mtx.as_ptr());
+        let mvp_mtx: glm::Mat4 = view_projection_matrix * node.current_transformation_matrix;
+        let model_mtx: glm::Mat4 = node.current_transformation_matrix;
+        gl::UniformMatrix4fv(3, 1, gl::FALSE, mvp_mtx.as_ptr());
+        gl::UniformMatrix4fv(4, 1, gl::FALSE, model_mtx.as_ptr());
         gl::BindVertexArray(node.vao_id);
         gl::DrawElements(
             gl::TRIANGLES,
@@ -149,21 +151,18 @@ unsafe fn draw_scene(node: &scene_graph::SceneNode, view_projection_matrix: &glm
 // Task 3a // ========================================================================================================
 unsafe fn update_node_transformations(node: &mut scene_graph::SceneNode, transformation_so_far: &glm::Mat4) {
 
-    // Task 3c // ========================================================
-    let mut transformation: glm::Mat4 = *transformation_so_far;
-
-    transformation = glm::translation(&glm::vec3(-node.reference_point.x, -node.reference_point.y, -node.reference_point.z)) * transformation;
+    let mut transformation: glm::Mat4 = glm::translation(&glm::vec3(-node.reference_point.x, -node.reference_point.y, -node.reference_point.z));
+    
     transformation = glm::rotation(node.rotation.x, &glm::vec3(1.0, 0.0, 0.0)) * transformation;
     transformation = glm::rotation(node.rotation.y, &glm::vec3(0.0, 1.0, 0.0)) * transformation;
     transformation = glm::rotation(node.rotation.z, &glm::vec3(0.0, 0.0, 1.0)) * transformation;
+
     transformation = glm::translation(&glm::vec3(node.reference_point.x, node.reference_point.y, node.reference_point.z)) * transformation;
 
     transformation = glm::translation(&node.position) * transformation;
-    // transformation = glm::scaling(&node.scale) * transformation;
 
     // Update the node's transformation matrix
-    node.current_transformation_matrix =  transformation_so_far * transformation;
-    // ===================================================================
+    node.current_transformation_matrix = transformation_so_far * transformation;
     
     // Recurse
     for &child in &node.children {
@@ -285,26 +284,26 @@ fn main() {
 
 
         // TASK 3b // ===============================================================
-        lunarsurface_node.reference_point = glm::vec3(0.0, 0.0, 0.0);
-        helicopter_body_node.reference_point = glm::vec3(0.0, 0.0, 0.0);
-        helicopter_door_node.reference_point = glm::vec3(1.2, 0.0, 0.0);
-        helicopter_main_rotor_node.reference_point = glm::vec3(0.0, 0.0, 0.0);
+        // lunarsurface_node.reference_point = glm::vec3(0.0, 0.0, 0.0);
+        // helicopter_body_node.reference_point = glm::vec3(0.0, 0.0, 0.0);
+        // helicopter_door_node.reference_point = glm::vec3(1.0, 1.5, 0.0);
+        // helicopter_main_rotor_node.reference_point = glm::vec3(0.0, 2.3, 0.0);
         helicopter_tail_rotor_node.reference_point = glm::vec3(0.35, 2.3, 10.4);
         // ==========================================================================
+
+        // Adding every node to the main root node
+        root.add_child(&lunarsurface_node);
+
+        // Adding the helicopter root node to surface node
+        lunarsurface_node.add_child(&helicopter_root);
+
+        // Adding the entire helicopter as a child to the helicopter root node
+        helicopter_root.add_child(&helicopter_body_node);
 
         // Adding child nodes to the helicopter body
         helicopter_body_node.add_child(&helicopter_main_rotor_node);
         helicopter_body_node.add_child(&helicopter_tail_rotor_node);
         helicopter_body_node.add_child(&helicopter_door_node);
-
-        // Adding the entire helicopter as a child to the helicopter root node
-        helicopter_root.add_child(&helicopter_body_node);
-
-        // Adding the helicopter root node to surface node
-        lunarsurface_node.add_child(&helicopter_root);
-
-        // Adding every node to the main root node
-        root.add_child(&lunarsurface_node);
 
         // Used to demonstrate keyboard handling -- feel free to remove
         let mut _arbitrary_number = 0.0;
@@ -326,7 +325,7 @@ fn main() {
         };
 
         // Perspective transformation
-        let perspective_mtx: glm::Mat4 = glm::perspective(SCREEN_H as f32 / SCREEN_W as f32, 90.0, 1.0, 1000.0);
+        let perspective_mtx: glm::Mat4 = glm::perspective(SCREEN_W as f32 / SCREEN_H as f32, 90.0, 1.0, 1000.0);
 
         // Transform to negative z-axis
         let perspective_translation_mtx: glm::Mat4 = glm::translation(&glm::vec3(0.0, 0.0, -1.0));
@@ -359,18 +358,18 @@ fn main() {
             mtx = mtx * projection_mtx * pos_rot_mtx;
 
             // Task 4a // ================================================
-            helicopter_main_rotor_node.rotation.y = elapsed;
-            helicopter_tail_rotor_node.rotation.x = elapsed;
+            helicopter_main_rotor_node.rotation.y = elapsed * 10.0;
+            helicopter_tail_rotor_node.rotation.x = elapsed * 10.0;
             // ===========================================================
 
             // Task 4b // ================================================
-            // let heading = toolbox::simple_heading_animation(elapsed);
-            // helicopter_root.position.z = heading.z;
-            // helicopter_root.position.x = heading.x;
+            let heading = toolbox::simple_heading_animation(elapsed);
+            helicopter_body_node.position.z = heading.z;
+            helicopter_body_node.position.x = heading.x;
 
-            // helicopter_root.rotation.z = heading.roll;
-            // helicopter_root.rotation.y = heading.yaw;
-            // helicopter_root.rotation.x = heading.pitch;
+            helicopter_body_node.rotation.z = heading.roll;
+            helicopter_body_node.rotation.y = heading.yaw;
+            helicopter_body_node.rotation.x = heading.pitch;
             // ===========================================================
 
             // Handle keyboard input

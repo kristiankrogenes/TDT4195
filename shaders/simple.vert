@@ -7,13 +7,16 @@ in layout(location=2) vec3 normal;
 out layout(location=1) vec4 outColor;
 out layout(location=2) vec3 outNormal;
 
-uniform layout(location=3) mat4 inTranslation;
+uniform layout(location=3) mat4 inMVPTranslation;
+uniform layout(location=4) mat4 inModelTranslation;
 
 vec4 positionXYZW = vec4(position.x, position.y, position.z, 1.0);
 
 void main()
 {
-    gl_Position =  inTranslation * positionXYZW;
+    gl_Position =  inMVPTranslation * positionXYZW;
+
     outColor = color;
-    outNormal = normal;
+    outNormal = normalize(mat3(inModelTranslation) * normal);
+    // outNormal = normal;
 }

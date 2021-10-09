@@ -10,7 +10,6 @@ void main()
     // color = vec4(newNormal, 1.0);
 
     vec3 lightDirection = normalize(vec3(0.8, -0.5, 0.6));
-    vec3 a = max(vec3(0.0, 0.0, 0.0), newNormal * (-lightDirection));
-    vec4 b = vec4(a, 1.0);
-    color = newColor * b;
+    vec3 newRGB = newColor.rgb * max(0, dot(newNormal, -lightDirection));
+    color = vec4(newRGB, newColor.a);
 }
