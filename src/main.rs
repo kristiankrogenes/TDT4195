@@ -70,8 +70,7 @@ unsafe fn setup_vao(vertices: &Vec<f32>, indices: &Vec<u32>, rgba: &Vec<f32>, no
         3,
         gl::FLOAT,
         gl::FALSE,
-        // 3 * size_of::<f32>(),
-        0,
+        3 * size_of::<f32>(),
         ptr::null(),
     );
     gl::EnableVertexAttribArray(0);
@@ -148,7 +147,6 @@ unsafe fn draw_scene(node: &scene_graph::SceneNode, view_projection_matrix: &glm
     }
 }
 
-// Task 3a // ========================================================================================================
 unsafe fn update_node_transformations(node: &mut scene_graph::SceneNode, transformation_so_far: &glm::Mat4) {
 
     let mut transformation: glm::Mat4 = glm::translation(&glm::vec3(-node.reference_point.x, -node.reference_point.y, -node.reference_point.z));
@@ -169,7 +167,67 @@ unsafe fn update_node_transformations(node: &mut scene_graph::SceneNode, transfo
         update_node_transformations(&mut *child, &node.current_transformation_matrix);
     }
 }
-// ====================================================================================================================
+
+// Creates vao's for the differents mesh's
+unsafe fn create_mesh_vao(mesh: &mesh::Mesh) -> u32 {
+    return setup_vao(&mesh.vertices, &mesh.indices, &mesh.colors, &mesh.normals);
+}
+
+// Defining a Helicopter struct
+struct Helicopter {
+    id: u32,
+    root: scene_graph::Node,
+    body: scene_graph::Node,
+    door: scene_graph::Node,
+    main_rotor: scene_graph::Node,
+    tail_rotor: scene_graph::Node,
+}
+
+// Creates multiple helicopters
+fn create_helicopters(num_of_helicopters: u32) -> Vec<Helicopter> {
+
+    // Getting the helicopter mesh
+    let helicopter_mesh = mesh::Helicopter::load(".\\resources\\helicopter.obj");
+
+    // Setting up the vao's for the different helicopter parts
+    let helicopter_body_vao: u32 = unsafe { create_mesh_vao(&helicopter_mesh.body) };
+    let helicopter_door_vao: u32 = unsafe { create_mesh_vao(&helicopter_mesh.door) };
+    let helicopter_main_rotor_vao: u32 = unsafe { create_mesh_vao(&helicopter_mesh.main_rotor) };
+    let helicopter_tail_rotor_vao: u32 = unsafe { create_mesh_vao(&helicopter_mesh.tail_rotor) };
+    
+    let mut helicopters = Vec::new();
+
+    for i in 1..=num_of_helicopters {
+
+        // Setting up the different parts of the helicopter as nodes
+        let mut helicopter_root_node = SceneNode::new();
+        let mut helicopter_body_node = SceneNode::from_vao(helicopter_body_vao, helicopter_mesh[0].index_count);
+        let helicopter_door_node = SceneNode::from_vao(helicopter_door_vao, helicopter_mesh[3].index_count);
+        let helicopter_main_rotor_node = SceneNode::from_vao(helicopter_main_rotor_vao, helicopter_mesh[1].index_count);
+        let mut helicopter_tail_rotor_node = SceneNode::from_vao(helicopter_tail_rotor_vao, helicopter_mesh[2].index_count);
+
+        // Adding the helicopter body as a child to the helicopter root node
+        helicopter_root_node.add_child(&helicopter_body_node);
+
+        // Adding child nodes to the helicopter body
+        helicopter_body_node.add_child(&helicopter_main_rotor_node);
+        helicopter_body_node.add_child(&helicopter_tail_rotor_node);
+        helicopter_body_node.add_child(&helicopter_door_node);
+
+        // Setting reference point for the tail rotor 
+        helicopter_tail_rotor_node.reference_point = glm::vec3(0.35, 2.3, 10.4);
+
+        helicopters.push(Helicopter {
+            id: i as u32,
+            root: helicopter_root_node,
+            body: helicopter_body_node,
+            door: helicopter_door_node,
+            main_rotor: helicopter_main_rotor_node,
+            tail_rotor: helicopter_tail_rotor_node,
+        });
+    }
+    return helicopters;
+}
 
 fn main() {
     // Set up the necessary objects to deal with windows and event handling
@@ -222,88 +280,27 @@ fn main() {
             println!("GLSL\t: {}", util::get_gl_string(gl::SHADING_LANGUAGE_VERSION));
         }
 
-        // Load lunarsurface data
+        // Getting the lunar surface mesh
         let lunarsurface_mesh = mesh::Terrain::load(".\\resources\\lunarsurface.obj");
-        let helicopter_mesh = mesh::Helicopter::load(".\\resources\\helicopter.obj");
+        
+        // Creates the vao for the lunar surface
+        let lunarsurface_vao: u32 = unsafe { create_mesh_vao(&lunarsurface_mesh) }; 
 
-        // Declaring vao variables of lunar landscape and the helicopter parts
-        let lunarsurface_vao: u32; 
-
-        // TASK 2a // ===============================
-        let helicopter_body_vao: u32;
-        let helicopter_door_vao: u32;
-        let helicopter_main_rotor_vao: u32;
-        let helicopter_tail_rotor_vao: u32;
-        // ==========================================
-
-        // Set up the vao's
-        unsafe {
-            lunarsurface_vao = setup_vao(
-                &lunarsurface_mesh.vertices, 
-                &lunarsurface_mesh.indices, 
-                &lunarsurface_mesh.colors, 
-                &lunarsurface_mesh.normals,
-            );
-
-            // TASK 2a // ===============================
-            helicopter_body_vao = setup_vao(
-                &helicopter_mesh[0].vertices,
-                &helicopter_mesh[0].indices,
-                &helicopter_mesh[0].colors,
-                &helicopter_mesh[0].normals,
-            );
-            helicopter_door_vao = setup_vao(
-                &helicopter_mesh[3].vertices,
-                &helicopter_mesh[3].indices,
-                &helicopter_mesh[3].colors,
-                &helicopter_mesh[3].normals,
-            );
-            helicopter_main_rotor_vao = setup_vao(
-                &helicopter_mesh[1].vertices,
-                &helicopter_mesh[1].indices,
-                &helicopter_mesh[1].colors,
-                &helicopter_mesh[1].normals,
-            );
-            helicopter_tail_rotor_vao = setup_vao(
-                &helicopter_mesh[2].vertices,
-                &helicopter_mesh[2].indices,
-                &helicopter_mesh[2].colors,
-                &helicopter_mesh[2].normals,
-            );
-            // ============================================
-        }
-
-        // Set up scene nodes
+        // Defining the main root for the entire scene
         let mut root = SceneNode::new();
+
+        // Defining the lunar surface node
         let mut lunarsurface_node = SceneNode::from_vao(lunarsurface_vao, lunarsurface_mesh.index_count);
-        let mut helicopter_root = SceneNode::new();
-        let mut helicopter_body_node = SceneNode::from_vao(helicopter_body_vao, helicopter_mesh[0].index_count);
-        let mut helicopter_door_node = SceneNode::from_vao(helicopter_door_vao, helicopter_mesh[3].index_count);
-        let mut helicopter_main_rotor_node = SceneNode::from_vao(helicopter_main_rotor_vao, helicopter_mesh[1].index_count);
-        let mut helicopter_tail_rotor_node = SceneNode::from_vao(helicopter_tail_rotor_vao, helicopter_mesh[2].index_count);
 
-
-        // TASK 3b // ===============================================================
-        // lunarsurface_node.reference_point = glm::vec3(0.0, 0.0, 0.0);
-        // helicopter_body_node.reference_point = glm::vec3(0.0, 0.0, 0.0);
-        // helicopter_door_node.reference_point = glm::vec3(1.0, 1.5, 0.0);
-        // helicopter_main_rotor_node.reference_point = glm::vec3(0.0, 2.3, 0.0);
-        helicopter_tail_rotor_node.reference_point = glm::vec3(0.35, 2.3, 10.4);
-        // ==========================================================================
-
-        // Adding every node to the main root node
+        // Connects the lunar surface node to the main root
         root.add_child(&lunarsurface_node);
 
-        // Adding the helicopter root node to surface node
-        lunarsurface_node.add_child(&helicopter_root);
+        let mut helicopters = create_helicopters(5);
 
-        // Adding the entire helicopter as a child to the helicopter root node
-        helicopter_root.add_child(&helicopter_body_node);
-
-        // Adding child nodes to the helicopter body
-        helicopter_body_node.add_child(&helicopter_main_rotor_node);
-        helicopter_body_node.add_child(&helicopter_tail_rotor_node);
-        helicopter_body_node.add_child(&helicopter_door_node);
+        // Connects the helicopter nodes to the surface node
+        for helicopter in &helicopters {
+            lunarsurface_node.add_child(&helicopter.root);
+        }
 
         // Used to demonstrate keyboard handling -- feel free to remove
         let mut _arbitrary_number = 0.0;
@@ -352,25 +349,22 @@ fn main() {
             // Combines xyz movement and rotation
             let pos_rot_mtx: glm::Mat4 = rotation_xy_mtx * position_xyz_mtx;
 
-            // Scale transformation (Dont need this ???)
-            // let scaling_mtx: glm::Mat4 = glm::scaling(&scaling_vec);
-
             mtx = mtx * projection_mtx * pos_rot_mtx;
 
-            // Task 4a // ================================================
-            helicopter_main_rotor_node.rotation.y = elapsed * 10.0;
-            helicopter_tail_rotor_node.rotation.x = elapsed * 10.0;
-            // ===========================================================
+            // Implements rotation and animation to the helicopters 
+            for helicopter in helicopters.iter_mut() {
+                
+                helicopter.main_rotor.rotation.y = elapsed * 10.0;
+                helicopter.tail_rotor.rotation.x = elapsed * 10.0;
 
-            // Task 4b // ================================================
-            let heading = toolbox::simple_heading_animation(elapsed);
-            helicopter_body_node.position.z = heading.z;
-            helicopter_body_node.position.x = heading.x;
+                let heading = toolbox::simple_heading_animation(elapsed + (0.8 * helicopter.id as f32));
+                helicopter.body.position.z = heading.z;
+                helicopter.body.position.x = heading.x;
 
-            helicopter_body_node.rotation.z = heading.roll;
-            helicopter_body_node.rotation.y = heading.yaw;
-            helicopter_body_node.rotation.x = heading.pitch;
-            // ===========================================================
+                helicopter.body.rotation.z = heading.roll;
+                helicopter.body.rotation.y = heading.yaw;
+                helicopter.body.rotation.x = heading.pitch;
+            }
 
             // Handle keyboard input
             if let Ok(keys) = pressed_keys.lock() {
@@ -432,13 +426,9 @@ fn main() {
                 gl::ClearColor(0.76862745, 0.71372549, 0.94901961, 1.0); // moon raker, full opacity
                 gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
 
-                // Task 3d // ======================================================
                 update_node_transformations(&mut root, &glm::Mat4::identity());
-                // =================================================================
                 
-                // TASK 2c // ======================================================
                 draw_scene(&root, &mtx);
-                // =================================================================
 
                 // TASK 2b // ================================================================================================
                 // gl::BindVertexArray(lunarsurface_vao);
